@@ -190,10 +190,21 @@ pg_dump --schema-only "$POSTGRES_DB"     # PostgreSQL
   validation, atomic approve/reject), views, tests
 - `templates/` — Bootstrap 5 server-rendered UI
 
-Security: framework password hashing, ORM-only queries (no raw SQL), CSRF on
-every form, server-side role checks on every HR view, employees can only
-query their own data, all client-supplied dates parsed and validated with
-safe fallbacks, state-changing actions are POST-only.
+## Security
+
+- Framework password hashing (PBKDF2); passwords are never stored or logged in plaintext
+- ORM-only queries throughout — no raw or string-interpolated SQL
+- CSRF protection on every form; all state-changing actions are POST-only
+- Server-side role enforcement (`hr_required`) on every HR view; employees can
+  only query their own data
+- All client-supplied dates are parsed and validated with safe fallbacks
+- **Production hardening**, active automatically when `DJANGO_DEBUG=0`
+  (see `config/settings.py`):
+  - `SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`
+  - HSTS: `SECURE_HSTS_SECONDS=31536000` with subdomains and preload
+  - `SECURE_CONTENT_TYPE_NOSNIFF`
+  - Note: `SECURE_BROWSER_XSS_FILTER` (the legacy `X-XSS-Protection` header)
+    was removed in Django 4, so the modern equivalents above are used instead
 
 ## Assumptions
 
