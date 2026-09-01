@@ -121,6 +121,16 @@ LOGOUT_REDIRECT_URL = "login"
 # Map Django's "error" tag to Bootstrap's "danger" class.
 MESSAGE_TAGS = {messages.ERROR: "danger"}
 
+# Email: console backend for local/dev (password-reset emails are printed to
+# the runserver console). Point DJANGO_EMAIL_BACKEND at a real SMTP backend
+# in production.
+EMAIL_BACKEND = os.environ.get(
+    "DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+)
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DJANGO_DEFAULT_FROM_EMAIL", "attendance@innereye.example"
+)
+
 # ---------------------------------------------------------------------------
 # Business rules (documented in README.md)
 # ---------------------------------------------------------------------------
