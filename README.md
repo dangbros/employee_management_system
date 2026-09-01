@@ -38,6 +38,35 @@ constraints and switches to PostgreSQL via environment variables.
 - **Distinct role UI**: HR gets a dark navbar with an HR badge; employees a
   blue navbar. Color-coded status badges throughout.
 
+## Screenshots
+
+Screenshots live in `docs/screenshots/`. To (re)capture them, start the app
+with seeded demo data (`python manage.py seed_demo`, see setup below) and
+save the following pages:
+
+| File | Page | How to capture |
+|------|------|----------------|
+| `docs/screenshots/login.png` | Login page | Open http://127.0.0.1:8000/login/ while logged out |
+| `docs/screenshots/employee_dashboard.png` | Employee dashboard | Log in as `EMP001` |
+| `docs/screenshots/hr_dashboard.png` | HR team dashboard | Log in as `HR001` |
+| `docs/screenshots/leave_approvals.png` | Leave approvals | As `HR001`, open “Leave requests” |
+
+![Login page](docs/screenshots/login.png)
+
+*Login: employees sign in with their Employee ID; passwords are hashed, never stored in plaintext.*
+
+![Employee dashboard](docs/screenshots/employee_dashboard.png)
+
+*Employee dashboard: one-click check-in/check-out with immediate feedback, weekly/monthly hours and leave balance.*
+
+![HR dashboard](docs/screenshots/hr_dashboard.png)
+
+*HR dashboard (dark navbar + HR badge): whole-team status for any day with search, department and date filters.*
+
+![Leave approvals](docs/screenshots/leave_approvals.png)
+
+*Leave approvals: pending requests with one-click approve/reject and a review history.*
+
 ## Setup from a fresh clone
 
 ```bash
