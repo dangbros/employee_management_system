@@ -21,6 +21,20 @@ SECRET_KEY = os.environ.get(
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
+# ---------------------------------------------------------------------------
+# Production hardening: active only when DEBUG is off (DJANGO_DEBUG=0).
+# Note: SECURE_BROWSER_XSS_FILTER (X-XSS-Protection) was removed in Django 4;
+# SECURE_CONTENT_TYPE_NOSNIFF and HSTS below are the modern equivalents.
+# ---------------------------------------------------------------------------
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
