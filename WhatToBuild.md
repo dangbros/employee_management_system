@@ -1,89 +1,63 @@
-#Employee Attendance Management System
+# Polish Pass on Employee Attendance Management System
 
-Build a complete, production-quality **Employee Attendance Management System** for a developer assignment submission (Inner Eye Consultancy Services LLP). This needs to be a fully working application, not a prototype — treat it as something that will be evaluated on architecture, code quality, UI/UX, database design, and security.
+## Context
 
-## Tech Stack (you choose, justify briefly)
+The core Employee Attendance Management System is already implemented and working (Django + DRF/templates, SQL backend) — see MR !3 (`employee_management_system` on GitLab): login/registration, check-in/check-out, working-hours calculation, leave deduction, HR dashboard, employee dashboard, and attendance status tracking are all done.
 
-Pick **one** backend and stick with it end-to-end:
-- **Option A:** Django + Django REST Framework, with Django's ORM and built-in auth as a foundation (extend the User model rather than replacing it outright)
-- **Option B:** FastAPI + SQLModel (or SQLAlchemy), with Pydantic schemas and JWT-based auth
+This is a **follow-up pass** on the same branch/repo to strengthen the submission against the assessment's stated criteria: architecture, code quality, UI/UX, database design, security, and overall implementation. Work through the items below **one at a time, in the order given**, and after each one: run the existing test suite to confirm nothing broke, then commit with a clear, scoped message before moving to the next item. Don't batch multiple items into one commit.
 
-Use a **relational SQL database** — SQLite for local dev/setup simplicity, but write the schema so it ports cleanly to PostgreSQL (no SQLite-only types, use proper foreign keys and constraints).
+Do not touch or refactor unrelated parts of the existing feature set unless a task below explicitly requires it.
 
-For the frontend, choose whichever pairs best with your backend choice:
-- Django → server-rendered templates with Bootstrap 5 (clean, no unnecessary JS frameworks)
-- FastAPI → a lightweight React (Vite) SPA consuming the REST API
+---
 
-State your stack choice and reasoning in one short paragraph before writing code.
+## Group 1 — High impact, low effort (do these first)
 
-## Core Features (all required)
+### 1. CI pipeline
+Add a `.gitlab-ci.yml` that runs `python manage.py test` on every push (and merge request). Use an appropriate Python Docker image, cache pip dependencies, and install from `requirements.txt`. Keep it to a single `test` stage for now — don't over-engineer with deploy stages that don't exist yet.
 
-1. **Employee Login & Registration**
-   - Registration with email/employee ID, password hashing (never plaintext), basic validation
-   - Login with session or JWT auth depending on stack
-   - Role field: `employee` vs `hr` (or `admin`) — this drives dashboard access
+### 2. Screenshots in the README
+Take (or describe exactly how to take, if you can't capture images directly) 3–4 screenshots: login page, employee dashboard, HR dashboard, and the leave approval view. Add an "Screenshots" section to the README embedding these images with brief captions.
 
-2. **Attendance Check-In / Check-Out**
-   - One check-in and one check-out per day per employee (prevent duplicate/overlapping entries)
-   - Timestamp captured server-side, not trusted from client
-   - Handle edge cases: check-out without check-in, missed check-outs
+### 3. Database scripts deliverable
+The assignment explicitly asks for "database scripts." Migrations satisfy this technically, but make it explicit: add a README section showing either (a) `python manage.py sqlmigrate <app> <migration>` output for the key migrations, or (b) a generated `schema.sql` dump of the full schema. Include the exact command used so evaluators can reproduce it.
 
-3. **Working Hours Calculation**
-   - Compute daily hours worked from check-in/check-out pairs
-   - Aggregate into weekly/monthly summaries
-   - Flag incomplete days (missing check-out) distinctly from zero-hour days
+### 4. Production hardening notes + settings
+In `settings.py`, add a `DEBUG`-gated security block: `SECURE_HSTS_SECONDS`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`, `SECURE_SSL_REDIRECT`, and `SECURE_BROWSER_XSS_FILTER`, all active only when `DEBUG=0`. Document this in the README under a "Security" section so it's visible without reading the code.
 
-4. **Leave Deduction Calculation**
-   - A leave balance per employee (e.g. accrued monthly or fixed annual allotment — pick a reasonable policy and document it)
-   - Leave requests reduce balance; unapproved absences (no check-in, no leave filed) should be distinguishable from approved leave
-   - Simple approval workflow: employee requests leave → HR approves/rejects
+---
 
-5. **HR Dashboard**
-   - View all employees, their attendance status today, working-hour trends, and leave balances
-   - Approve/reject leave requests
-   - Filter/search by employee, date range, department (if you add one)
+## Group 2 — Medium effort, strengthens "overall implementation"
 
-6. **Employee Dashboard**
-   - Personal check-in/check-out control
-   - Personal attendance history and working-hours summary
-   - Leave balance and leave request form/history
+### 5. CSV export
+Add a "Export CSV" action on the HR dashboard for monthly attendance — employee name, date, check-in, check-out, hours worked, status. Use Django's `HttpResponse` with `content_type="text/csv"` and the `csv` module; don't add a new dependency for this.
 
-7. **Attendance Status Tracking**
-   - Per-day status per employee: Present / Absent / On Leave / Half-day / Incomplete
-   - This should be derivable/queryable, not just a raw log — build a clear status-computation layer (a service/utility function, not scattered logic in views)
+### 6. Password reset flow
+Wire up Django's built-in password-reset views (`PasswordResetView`, `PasswordResetConfirmView`, etc.) with the console email backend for local/dev use. Add the necessary URL patterns and minimal templates matching the existing UI style. Note in the README that a real email backend (SMTP/SendGrid/etc.) would replace the console backend in production.
 
-## Architecture & Code Quality Requirements
+### 7. Pagination
+Add pagination to the HR dashboard's employee/attendance table and to the leave-history view — use Django's built-in `Paginator`, default page size 20, with prev/next controls matching the existing template style.
 
-- Clean separation of concerns: models / business logic (attendance & leave calculations) / views-or-routes / serializers-or-schemas
-- All date/time handling must be timezone-aware and consistent (pick and document one timezone policy)
-- Input validation on every endpoint/form — no trusting client-supplied dates, hours, or roles
-- Passwords hashed (use the framework's built-in hasher, e.g. Django's `make_password` or `passlib`/`bcrypt` for FastAPI)
-- Authorization checks: employees can only see their own data; only HR/admin role can see the HR dashboard or approve leave — enforce this server-side, not just by hiding UI elements
-- No SQL injection surfaces — use the ORM/parameterized queries throughout, never raw string-interpolated SQL
-- Sensible error handling and HTTP status codes (for the API option) or user-facing error messages (for the template option)
-- Add basic automated tests for the working-hours calculation and leave-deduction logic specifically, since that's the trickiest business logic to get subtly wrong
+### 8. Audit trail for leave decisions
+Add a dedicated `LeaveAuditLog` model (or similarly named) recording: leave request reference, action (approved/rejected), performed_by, timestamp, and optional notes. Populate it at the same point `reviewed_by`/`reviewed_at` are currently set, without removing those fields. Surface a simple read-only log view for HR.
 
-## Database Design
+---
 
-- Design the schema first (Employee, Attendance, Leave/LeaveRequest, and any supporting tables) with proper foreign keys, indexes on frequently-queried columns (employee_id, date), and sensible constraints (unique constraint on employee+date for attendance, for example)
-- Include a short ER description or diagram (text-based is fine) in the docs
+## Group 3 — Nice to have (implement if time allows; otherwise write a "Future Work" README section describing each briefly)
 
-## UI/UX Expectations
+### 9. Working-hours trend charts
+Add a `<canvas>`-based chart (Chart.js via CDN, no new backend dependency) on the trends page showing weekly or monthly hours-worked trend per employee (employee view) and aggregate trend (HR view).
 
-- Clean, uncluttered dashboards — this doesn't need to be fancy, but it needs to be usable: clear status indicators (color-coded present/absent/leave), readable tables for history, and a simple check-in/check-out button that gives immediate feedback
-- Distinct visual treatment for HR vs employee views so it's obvious which role is logged in
+### 10. Holiday calendar
+Add a `Holiday` model (date, name) and feed it into the attendance-status computation so holidays aren't miscounted as absences. Seed a small set of holidays as an example.
 
-## Deliverables
+### 11. Dockerfile
+Add a `Dockerfile` (and `docker-compose.yml` if a separate DB service is used) for one-command setup: build, migrate, seed, run. Document the exact commands in the README.
 
-1. Full source code, organized in a clean project structure
-2. Database schema/migration scripts
-3. A `README.md` with:
-   - Setup instructions from a fresh clone (dependencies, env vars, migration/seed commands, how to run)
-   - The leave policy you implemented and why
-   - Any assumptions you made about ambiguous requirements
-4. Seed data / fixtures so the app is immediately demoable with a few employees, an HR user, and some attendance history
-5. A short note on what you'd add with more time (shows awareness of scope, e.g. audit logging, notifications, reports export)
+### 12. Leave accrual + carry-forward policy
+Upgrade the leave-balance model from a fixed allotment to monthly accrual with a capped carry-forward into the next year. Document the exact policy (accrual rate, cap, carry-forward rules) in the README's leave-policy section, replacing the previous fixed-allotment description.
 
-## Process
+---
 
-Work through this in order: schema design → backend models & auth → attendance/leave business logic (with tests) → HR and employee endpoints/views → frontend dashboards → seed data → README. Don't skip straight to UI before the business logic is solid — the working-hours and leave-deduction calculations are what will actually be scrutinized.
+## Reporting back
+
+After each completed item, give a one-line summary of what changed and confirm tests pass. At the end of each group, give a short overall status update before moving to the next group. If any item conflicts with existing architecture in a way that needs a judgment call, flag it and state the decision you made rather than silently picking one.
