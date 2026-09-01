@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -42,6 +43,11 @@ def my_leaves(request):
 
 @hr_required
 def hr_leaves(request):
+    history_qs = LeaveRequest.objects.exclude(
+        status=LeaveRequest.Status.PENDING
+    ).select_related("user", "reviewed_by")
+    paginator = Paginator(history_qs, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
     return render(
         request,
         "leaves/hr_leaves.html",
@@ -49,9 +55,8 @@ def hr_leaves(request):
             "pending": LeaveRequest.objects.filter(status=LeaveRequest.Status.PENDING)
             .select_related("user")
             .order_by("start_date"),
-            "history": LeaveRequest.objects.exclude(
-                status=LeaveRequest.Status.PENDING
-            ).select_related("user", "reviewed_by")[:50],
+            "history": page_obj.object_list,
+            "page_obj": page_obj,
         },
     )
 
