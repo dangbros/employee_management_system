@@ -1,93 +1,173 @@
-# Employee_Management_System
+# Employee Attendance Management System
 
+A production-quality attendance and leave management application built for the
+Inner Eye Consultancy Services LLP developer assignment.
 
+## Stack choice and reasoning
 
-## Getting started
+**Django 5 + server-rendered Bootstrap 5 templates (Option A).** Django's
+battle-tested auth (extended `AbstractUser`, PBKDF2 password hashing, session
+auth with CSRF protection), ORM with declarative migrations, and admin site
+cover the security-sensitive foundations out of the box, letting the effort go
+into the attendance/leave business logic. Server-rendered templates mean no
+build step, a single deployable, and a clean demo from a fresh clone. SQLite
+is used for local development; the schema uses only portable types and
+constraints and switches to PostgreSQL via environment variables.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Features
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- **Registration & login** with Employee ID, hashed passwords, unique
+  email/employee-ID validation. Roles (`employee` / `hr`) drive dashboards and
+  are never client-assignable: self-registration always creates employees.
+- **Check-in / check-out**: one of each per day, server-side timestamps,
+  guards for duplicate check-ins, check-out before check-in, and double
+  check-outs (service layer + DB unique/check constraints).
+- **Working hours**: daily hours from check-in/out pairs, weekly and monthly
+  aggregates; missed check-outs are flagged **Incomplete**, distinct from
+  zero-hour (Absent) days.
+- **Leave management**: per-employee balance, request → HR approve/reject
+  workflow, business-day counting, overlap prevention, balance reservation for
+  pending requests, atomic deduction at approval.
+- **Status tracking** via a single service layer (`attendance/services.py`):
+  Present / Half-day / Working / Incomplete / On leave / Absent / Weekend /
+  Not checked in — all derivable per employee per day.
+- **HR dashboard**: whole-team status for any past day, search + department +
+  date filters, per-employee working-hour trends over a date range, leave
+  approvals. **Employee dashboard**: one-click check-in/out with immediate
+  feedback, personal history, leave balance and request form.
+- **Distinct role UI**: HR gets a dark navbar with an HR badge; employees a
+  blue navbar. Color-coded status badges throughout.
 
-## Add your files
+## Setup from a fresh clone
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+```bash
+git clone https://gitlab.com/souryaroy-group/employee_management_system.git
+cd employee_management_system
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python manage.py migrate         # creates the SQLite schema
+python manage.py seed_demo       # demo users + 3 weeks of history
+python manage.py runserver
+```
+
+Open http://127.0.0.1:8000/ and log in.
+
+| Role | Login (Employee ID) | Password |
+|------|--------------------|----------|
+| HR | `HR001` | `DemoPass123!` |
+| Employees | `EMP001` … `EMP004` | `DemoPass123!` |
+
+Run the automated tests (working hours, status derivation, leave deduction):
+
+```bash
+python manage.py test
+```
+
+### Environment variables (all optional for local dev)
+
+| Variable | Purpose |
+|----------|---------|
+| `DJANGO_SECRET_KEY` | Secret key (required in production) |
+| `DJANGO_DEBUG` | `1` (default) or `0` |
+| `DJANGO_ALLOWED_HOSTS` | Comma-separated hosts |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT` | Set `POSTGRES_DB` to switch from SQLite to PostgreSQL |
+
+## Leave policy (implemented)
+
+- Every employee receives a **fixed annual allotment of 24 paid leave days**
+  (`ANNUAL_LEAVE_DAYS` in `config/settings.py`), credited when the account is
+  created. A fixed allotment was chosen over monthly accrual because it is the
+  simplest policy that still exercises the full deduction workflow; accrual
+  can be layered on later without schema changes.
+- Only **business days (Mon–Fri)** in a request count against the balance.
+- The balance is **deducted at approval time**, atomically with row locking.
+  Pending requests **reserve** balance so an employee cannot over-book.
+- Overlapping pending/approved requests are rejected.
+- **Retroactive requests are allowed** so an unplanned absence can be
+  regularised afterwards. Until then it shows as **Absent** (unapproved),
+  clearly distinguishable from **On leave** (approved).
+
+## Timezone policy
+
+All datetimes are stored in **UTC** (`USE_TZ = True`) and displayed in
+**Asia/Kolkata** (`TIME_ZONE`), the company's local time. A "day" for
+attendance purposes is a calendar day in local time. All check-in/check-out
+timestamps are captured server-side; client-supplied times are never trusted.
+
+## Day status model
+
+| Status | Meaning |
+|--------|---------|
+| Present | Checked in and out, ≥ 4 h worked |
+| Half-day | Checked in and out, < 4 h worked |
+| Working | Today: checked in, not yet out |
+| Incomplete | Past day: checked in but never checked out (missed check-out) |
+| On leave | Covered by an approved leave request |
+| Absent | Past weekday: no check-in and no approved leave |
+| Weekend | Sat/Sun with no activity |
+| Not checked in | Today: no check-in yet |
+
+## Database design (ER description)
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/souryaroy-group/employee_management_system.git
-git branch -M main
-git push -uf origin main
+accounts_user (custom AUTH_USER_MODEL, extends AbstractUser)
+  id PK · employee_id UNIQUE · username UNIQUE (mirrors employee_id)
+  email · password (hashed) · role ('employee'|'hr') · department · ...
+   │
+   ├─1:N─ attendance_attendance
+   │        id PK · user_id FK · date · check_in (UTC) · check_out (UTC)
+   │        UNIQUE(user_id, date) · CHECK(check_out > check_in)
+   │        INDEX(user_id, date) · INDEX(date)
+   │
+   ├─1:1─ leaves_leavebalance
+   │        id PK · user_id FK UNIQUE · balance DECIMAL(5,1) · updated_at
+   │
+   └─1:N─ leaves_leaverequest
+            id PK · user_id FK · start_date · end_date · days DECIMAL(4,1)
+            reason · status ('pending'|'approved'|'rejected')
+            reviewed_by_id FK→user (SET_NULL) · created_at · reviewed_at
+            CHECK(end_date >= start_date)
+            INDEX(user_id, status) · INDEX(start_date, end_date)
 ```
 
-## Integrate with your tools
+Migration scripts live in `accounts/migrations/`, `attendance/migrations/`
+and `leaves/migrations/`.
 
-* [Set up project integrations](https://gitlab.com/souryaroy-group/employee_management_system/-/settings/integrations)
+## Architecture
 
-## Collaborate with your team
+- `accounts/` — custom user, registration/login, `hr_required` decorator
+- `attendance/` — model, **`services.py`** (status computation, hours,
+  summaries — single source of truth), views, template tags, tests
+- `leaves/` — models, **`services.py`** (business-day math, overlap/balance
+  validation, atomic approve/reject), views, tests
+- `templates/` — Bootstrap 5 server-rendered UI
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+Security: framework password hashing, ORM-only queries (no raw SQL), CSRF on
+every form, server-side role checks on every HR view, employees can only
+query their own data, all client-supplied dates parsed and validated with
+safe fallbacks, state-changing actions are POST-only.
 
-## Test and Deploy
+## Assumptions
 
-Use the built-in continuous integration in GitLab.
+- Working week is Mon–Fri; weekends are never Absent and never deducted.
+- One check-in/check-out pair per day (no split shifts).
+- Leave is taken in whole business days.
+- Employees log in with their Employee ID.
+- HR accounts are provisioned via the seed command or Django admin, never
+  through self-registration.
+- Missed check-outs remain visible as Incomplete for HR follow-up rather than
+  being auto-closed.
+- Half-day threshold is 4 hours (configurable in settings).
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+## What I would add with more time
 
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+- Audit logging of approvals and attendance edits
+- Email/in-app notifications for leave decisions and missed check-outs
+- CSV/Excel export of monthly attendance reports
+- Public-holiday calendar integrated into status and leave math
+- Monthly accrual and year-end carry-forward for leave balances
+- A DRF JSON API alongside the templates plus OpenAPI docs
+- Charts for working-hour trends and pagination for large teams
+- Password reset flow and stronger session hardening for production
+- Dockerfile + CI pipeline running the test suite
