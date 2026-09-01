@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load attendance_extras %}
+{% block title %}My dashboard{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Hello, {{ user.first_name|default:user.username }}</h1>
+  <span class="text-muted">{{ today|date:"l, d M Y" }}</span>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h2 class="h6 text-muted">Today</h2>
+        <p class="mb-2">{{ status|status_badge }}</p>
+        <p class="small mb-3">
+          In: <strong>{% if record.check_in %}{{ record.check_in|time:"H:i" }}{% else %}&mdash;{% endif %}</strong><br>
+          Out: <strong>{% if record.check_out %}{{ record.check_out|time:"H:i" }}{% else %}&mdash;{% endif %}</strong>
+        </p>
+        {% if can_check_in %}
+          <form method="post" action="{% url 'check_in' %}">{% csrf_token %}
+            <button class="btn btn-success w-100">Check in</button>
+          </form>
+        {% elif can_check_out %}
+          <form method="post" action="{% url 'check_out' %}">{% csrf_token %}
+            <button class="btn btn-danger w-100">Check out</button>
+          </form>
+        {% else %}
+          <button class="btn btn-outline-secondary w-100" disabled>Done for today</button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h2 class="h6 text-muted">This week</h2>
+        <p class="display-6 mb-1">{{ week.total_hours }}<span class="fs-6 text-muted"> h</span></p>
+        <p class="small text-muted mb-0">{{ week.present }} present · {{ week.half_days }} half-day · {{ week.on_leave }} on leave</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h2 class="h6 text-muted">This month</h2>
+        <p class="display-6 mb-1">{{ month.total_hours }}<span class="fs-6 text-muted"> h</span></p>
+        <p class="small text-muted mb-0">{{ month.present }} present · {{ month.absent }} absent · {{ month.incomplete }} incomplete</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h2 class="h6 text-muted">Leave balance</h2>
+        <p class="display-6 mb-1">{{ balance.balance }}<span class="fs-6 text-muted"> days</span></p>
+        <a class="small" href="{% url 'my_leaves' %}">Request leave →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="h5">Last 7 days</h2>
+<div class="table-responsive">
+  <table class="table table-sm table-hover align-middle bg-white shadow-sm">
+    <thead class="table-light">
+      <tr><th>Date</th><th>Status</th><th>Check-in</th><th>Check-out</th><th>Hours</th></tr>
+    </thead>
+    <tbody>
+      {% for day in recent %}
+        <tr>
+          <td>{{ day.date|date:"D, d M" }}</td>
+          <td>{{ day.status|status_badge }}</td>
+          <td>{% if day.record.check_in %}{{ day.record.check_in|time:"H:i" }}{% else %}&mdash;{% endif %}</td>
+          <td>{% if day.record.check_out %}{{ day.record.check_out|time:"H:i" }}{% else %}&mdash;{% endif %}</td>
+          <td>{{ day.hours|default_if_none:"—" }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p><a href="{% url 'attendance_history' %}">Full history →</a></p>
+{% endblock %}

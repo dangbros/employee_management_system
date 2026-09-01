@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load attendance_extras %}
+{% block title %}Team dashboard{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Team dashboard</h1>
+  <span class="text-muted">Showing {{ day|date:"l, d M Y" }}</span>
+</div>
+
+{% if pending_count %}
+  <div class="alert alert-warning d-flex justify-content-between align-items-center">
+    <span><strong>{{ pending_count }}</strong> leave request{{ pending_count|pluralize }} awaiting review.</span>
+    <a class="btn btn-sm btn-warning" href="{% url 'hr_leaves' %}">Review now</a>
+  </div>
+{% endif %}
+
+<form method="get" class="row g-2 mb-4">
+  <div class="col-md-4">
+    <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Search name, employee ID or email">
+  </div>
+  <div class="col-md-3">
+    <select name="department" class="form-select">
+      <option value="">All departments</option>
+      {% for dept in departments %}
+        <option value="{{ dept }}" {% if dept == department %}selected{% endif %}>{{ dept }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}" class="form-control">
+  </div>
+  <div class="col-md-2">
+    <button class="btn btn-outline-primary w-100">Filter</button>
+  </div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-sm table-hover align-middle bg-white shadow-sm">
+    <thead class="table-light">
+      <tr>
+        <th>Employee</th><th>Name</th><th>Department</th><th>Role</th>
+        <th>Status</th><th>Check-in</th><th>Check-out</th><th>Hours</th>
+        <th>Leave balance</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>{{ row.employee.employee_id }}</td>
+          <td>{{ row.employee.get_full_name|default:"—" }}</td>
+          <td>{{ row.employee.department|default:"—" }}</td>
+          <td>{{ row.employee.get_role_display }}</td>
+          <td>{{ row.status|status_badge }}</td>
+          <td>{% if row.record.check_in %}{{ row.record.check_in|time:"H:i" }}{% else %}&mdash;{% endif %}</td>
+          <td>{% if row.record.check_out %}{{ row.record.check_out|time:"H:i" }}{% else %}&mdash;{% endif %}</td>
+          <td>{{ row.hours|default_if_none:"—" }}</td>
+          <td>{{ row.balance }} d</td>
+          <td><a class="btn btn-sm btn-outline-secondary" href="{% url 'hr_employee_detail' row.employee.id %}">Trends</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="10" class="text-center text-muted">No employees match your filters.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
