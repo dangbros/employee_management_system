@@ -5,6 +5,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -128,7 +129,10 @@ def hr_dashboard(request):
         )
     if department:
         employees = employees.filter(department=department)
-    employees = list(employees)
+
+    paginator = Paginator(employees, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    employees = list(page_obj.object_list)
 
     records = {
         a.user_id: a for a in Attendance.objects.filter(date=day, user__in=employees)
@@ -176,6 +180,7 @@ def hr_dashboard(request):
             "q": q,
             "department": department,
             "departments": departments,
+            "page_obj": page_obj,
             "pending_count": LeaveRequest.objects.filter(
                 status=LeaveRequest.Status.PENDING
             ).count(),
