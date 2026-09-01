@@ -163,6 +163,24 @@ accounts_user (custom AUTH_USER_MODEL, extends AbstractUser)
 Migration scripts live in `accounts/migrations/`, `attendance/migrations/`
 and `leaves/migrations/`.
 
+### Database scripts
+
+The Django migrations above are the canonical schema; a readable reference
+dump of the application tables is provided at [`docs/schema.sql`](docs/schema.sql).
+
+Regenerate engine-specific DDL yourself at any time:
+
+```bash
+# Per-migration DDL (dialect follows your configured database):
+python manage.py sqlmigrate accounts 0001
+python manage.py sqlmigrate attendance 0001
+python manage.py sqlmigrate leaves 0001
+
+# Or dump the full live schema after `python manage.py migrate`:
+sqlite3 db.sqlite3 .schema                # SQLite
+pg_dump --schema-only "$POSTGRES_DB"     # PostgreSQL
+```
+
 ## Architecture
 
 - `accounts/` — custom user, registration/login, `hr_required` decorator
