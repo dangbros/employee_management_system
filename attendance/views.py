@@ -1,3 +1,4 @@
+import csv
 import datetime as dt
 
 from django.conf import settings
@@ -5,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -205,3 +207,50 @@ def hr_employee_detail(request, user_id):
             "recent_leaves": employee.leave_requests.select_related("reviewed_by")[:10],
         },
     )
+
+
+@hr_required
+def hr_export_csv(request):
+    """Download one month of attendance for all active employees as CSV.
+
+    Uses the same status-computation service as the dashboards, so the
+    export can never disagree with what HR sees on screen.
+    """
+    User = get_user_model()
+    today = services.local_date()
+    ref = today
+    month_str = request.GET.get("month", "").strip()
+    if month_str:
+        try:
+            ref = dt.date.fromisoformat(month_str + "-01")
+        except ValueError:
+            ref = today
+    start, end = services.month_bounds(ref)
+
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = (
+        f'attachment; filename="attendance-{start:%Y-%m}.csv"'
+    )
+    writer = csv.writer(response)
+    writer.writerow(
+        ["Employee ID", "Name", "Date", "Check-in", "Check-out", "Hours", "Status"]
+    )
+    for emp in User.objects.filter(is_active=True).order_by("employee_id"):
+        for day in services.status_history(emp, start, end):
+            record = day["record"]
+            writer.writerow(
+                [
+                    emp.employee_id,
+                    emp.get_full_name(),
+                    day["date"].isoformat(),
+                    timezone.localtime(record.check_in).strftime("%H:%M")
+                    if record and record.check_in
+                    else "",
+                    timezone.localtime(record.check_out).strftime("%H:%M")
+                    if record and record.check_out
+                    else "",
+                    day["hours"] if day["hours"] is not None else "",
+                    day["status"],
+                ]
+            )
+    return response
