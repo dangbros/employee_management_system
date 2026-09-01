@@ -101,6 +101,15 @@ python manage.py test
 | `DJANGO_DEBUG` | `1` (default) or `0` |
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated hosts |
 | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT` | Set `POSTGRES_DB` to switch from SQLite to PostgreSQL |
+| `DJANGO_EMAIL_BACKEND`, `DJANGO_DEFAULT_FROM_EMAIL` | Email backend; defaults to the console backend for local dev |
+
+### Password reset
+
+A full password-reset flow is available from the login page (“Forgot
+password?”). In local development the reset email is printed to the
+`runserver` console (`django.core.mail.backends.console.EmailBackend`). In
+production, point `DJANGO_EMAIL_BACKEND` at a real backend (SMTP, SendGrid,
+SES, etc.) and set `DJANGO_DEFAULT_FROM_EMAIL`.
 
 ## Leave policy (implemented)
 
