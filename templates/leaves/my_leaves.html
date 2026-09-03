@@ -2,29 +2,29 @@
 {% load attendance_extras %}
 {% block title %}My leaves{% endblock %}
 {% block content %}
-<h1 class="h3 mb-3">My leaves</h1>
+<div class="page-heading"><p class="page-eyebrow">Time away</p><h1 class="page-title">My leaves</h1><p class="page-subtitle">Request time off and track each request in one place.</p></div>
 <div class="row g-4">
   <div class="col-md-4">
-    <div class="card shadow-sm mb-3">
+    <div class="card metric-card accent mb-3">
       <div class="card-body">
-        <h2 class="h6 text-muted">Available balance</h2>
-        <p class="display-6 mb-0">{{ balance.balance }}<span class="fs-6 text-muted"> days</span></p>
+        <h2 class="metric-label">Available balance</h2>
+        <p class="metric-value mb-0">{{ balance.balance }}<span class="metric-unit"> days</span></p>
       </div>
     </div>
-    <div class="card shadow-sm">
+    <div class="card">
       <div class="card-body">
-        <h2 class="h6">Request leave</h2>
+        <h2 class="h5 mb-3">Request leave</h2>
         <form method="post" novalidate>
           {% csrf_token %}
           <div class="mb-2">
             <label class="form-label small" for="{{ form.start_date.id_for_label }}">Start date</label>
             {{ form.start_date }}
-            {% for error in form.start_date.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            {% for error in form.start_date.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
           </div>
           <div class="mb-2">
             <label class="form-label small" for="{{ form.end_date.id_for_label }}">End date</label>
             {{ form.end_date }}
-            {% for error in form.end_date.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            {% for error in form.end_date.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
           </div>
           <div class="mb-3">
             <label class="form-label small" for="{{ form.reason.id_for_label }}">Reason (optional)</label>
@@ -37,8 +37,8 @@
     </div>
   </div>
   <div class="col-md-8">
-    <div class="table-responsive">
-      <table class="table table-sm table-hover align-middle bg-white shadow-sm">
+    <div class="table-card table-responsive">
+      <table class="table table-hover align-middle">
         <thead class="table-light">
           <tr><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Reviewed by</th></tr>
         </thead>
@@ -53,7 +53,7 @@
               <td>{% if leave.reviewed_by %}{{ leave.reviewed_by.get_full_name|default:leave.reviewed_by.username }}{% else %}&mdash;{% endif %}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="6" class="text-center text-muted">No leave requests yet.</td></tr>
+            <tr><td colspan="6" class="empty-state"><span class="empty-icon">○</span>No leave requests yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>

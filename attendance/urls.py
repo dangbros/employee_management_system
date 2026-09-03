@@ -10,4 +10,5 @@ urlpatterns = [
     path("hr/", views.hr_dashboard, name="hr_dashboard"),
     path("hr/export/", views.hr_export_csv, name="hr_export_csv"),
     path("hr/employee/<int:user_id>/", views.hr_employee_detail, name="hr_employee_detail"),
+    path("hr/employee/<int:user_id>/report/", views.hr_employee_report, name="hr_employee_report"),
 ]

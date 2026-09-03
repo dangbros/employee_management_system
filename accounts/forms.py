@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import (
     AuthenticationForm,
+    PasswordChangeForm,
     PasswordResetForm,
     SetPasswordForm,
     UserCreationForm,
@@ -65,6 +66,32 @@ class BootstrapPasswordResetForm(PasswordResetForm):
 
 
 class BootstrapSetPasswordForm(SetPasswordForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+
+
+class ProfileForm(forms.ModelForm):
+    """Employee-editable account details; role and employment data stay managed by HR."""
+
+    class Meta:
+        model = User
+        fields = ("first_name", "last_name", "email")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+
+    def clean_email(self):
+        value = self.cleaned_data["email"].strip().lower()
+        if User.objects.exclude(pk=self.instance.pk).filter(email__iexact=value).exists():
+            raise forms.ValidationError("An account with this email already exists.")
+        return value
+
+
+class BootstrapPasswordChangeForm(PasswordChangeForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():

@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.urls import reverse
 
 from . import services
 from .models import LeaveRequest
@@ -109,3 +110,32 @@ class LeaveRequestTests(TestCase):
         services.approve(req, self.hr)
         dates = services.approved_leave_dates(self.employee, MON, NEXT_WED)
         self.assertEqual(dates, {FRI, NEXT_MON})
+
+
+class LeaveViewIntegrationTests(TestCase):
+    def setUp(self):
+        self.employee = User.objects.create_user(
+            username="EMP500", employee_id="EMP500", email="emp500@example.com", password="x"
+        )
+        self.hr = User.objects.create_user(
+            username="HR500", employee_id="HR500", email="hr500@example.com", password="x",
+            role=User.Role.HR,
+        )
+
+    def test_employee_submits_leave_and_hr_approves_it(self):
+        self.client.force_login(self.employee)
+        response = self.client.post(
+            reverse("my_leaves"), {"start_date": "2024-06-03", "end_date": "2024-06-04", "reason": "Trip"},
+        )
+        self.assertRedirects(response, reverse("my_leaves"))
+        leave = LeaveRequest.objects.get(user=self.employee)
+        self.client.force_login(self.hr)
+        response = self.client.post(reverse("approve_leave", args=[leave.pk]))
+        self.assertRedirects(response, reverse("hr_leaves"))
+        leave.refresh_from_db()
+        self.assertEqual(leave.status, LeaveRequest.Status.APPROVED)
+
+    def test_employee_cannot_review_leave(self):
+        leave = services.create_request(self.employee, MON, TUE)
+        self.client.force_login(self.employee)
+        self.assertEqual(self.client.post(reverse("approve_leave", args=[leave.pk])).status_code, 403)

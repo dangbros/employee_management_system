@@ -2,11 +2,11 @@
 {% load attendance_extras %}
 {% block title %}Leave requests{% endblock %}
 {% block content %}
-<h1 class="h3 mb-3">Leave requests</h1>
+<div class="page-heading"><p class="page-eyebrow">People operations</p><h1 class="page-title">Leave requests</h1><p class="page-subtitle">Review incoming requests and see recent decisions.</p></div>
 
-<h2 class="h5">Pending approval</h2>
-<div class="table-responsive mb-4">
-  <table class="table table-sm table-hover align-middle bg-white shadow-sm">
+<div class="d-flex justify-content-between align-items-center mb-2"><h2 class="h5 mb-0">Pending approval</h2><span class="small text-muted">Action required</span></div>
+<div class="table-card table-responsive mb-4">
+  <table class="table table-hover align-middle">
     <thead class="table-light">
       <tr><th>Employee</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Requested</th><th class="text-end">Actions</th></tr>
     </thead>
@@ -22,24 +22,24 @@
           <td class="text-end">
             <form method="post" action="{% url 'approve_leave' leave.pk %}" class="d-inline">
               {% csrf_token %}
-              <button class="btn btn-sm btn-success">Approve</button>
+              <button class="btn btn-sm btn-success" data-confirm data-confirm-title="Approve leave request?" data-confirm-message="This will deduct {{ leave.days }} working day{{ leave.days|pluralize }} from {{ leave.user.get_full_name|default:leave.user.employee_id }}'s leave balance.">Approve</button>
             </form>
             <form method="post" action="{% url 'reject_leave' leave.pk %}" class="d-inline">
               {% csrf_token %}
-              <button class="btn btn-sm btn-outline-danger">Reject</button>
+              <button class="btn btn-sm btn-outline-danger" data-confirm data-confirm-title="Reject leave request?" data-confirm-message="This request will be marked as rejected.">Reject</button>
             </form>
           </td>
         </tr>
       {% empty %}
-        <tr><td colspan="7" class="text-center text-muted">No pending requests. 🎉</td></tr>
+        <tr><td colspan="7" class="empty-state"><span class="empty-icon">✓</span>No pending requests.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 
-<h2 class="h5">Recently reviewed</h2>
-<div class="table-responsive">
-  <table class="table table-sm table-hover align-middle bg-white shadow-sm">
+<h2 class="h5 mb-2">Recently reviewed</h2>
+<div class="table-card table-responsive">
+  <table class="table table-hover align-middle">
     <thead class="table-light">
       <tr><th>Employee</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Reviewed by</th><th>Reviewed at</th></tr>
     </thead>
@@ -55,7 +55,7 @@
           <td>{{ leave.reviewed_at|date:"d M Y H:i" }}</td>
         </tr>
       {% empty %}
-        <tr><td colspan="7" class="text-center text-muted">Nothing reviewed yet.</td></tr>
+        <tr><td colspan="7" class="empty-state"><span class="empty-icon">○</span>Nothing reviewed yet.</td></tr>
       {% endfor %}
     </tbody>
   </table>

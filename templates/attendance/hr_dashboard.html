@@ -2,10 +2,10 @@
 {% load attendance_extras %}
 {% block title %}Team dashboard{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h3 mb-0">Team dashboard</h1>
-  <div>
-    <span class="text-muted me-2">Showing {{ day|date:"l, d M Y" }}</span>
+<div class="page-heading d-flex justify-content-between align-items-center">
+  <div><p class="page-eyebrow">People operations</p><h1 class="page-title">Team dashboard</h1><p class="page-subtitle">Monitor attendance and leave activity across your team.</p></div>
+  <div class="text-end">
+    <span class="text-muted small me-2">Showing {{ day|date:"l, d M Y" }}</span>
     <a class="btn btn-sm btn-outline-success" href="{% url 'hr_export_csv' %}?month={{ day|date:'Y-m' }}">Export CSV</a>
   </div>
 </div>
@@ -17,7 +17,15 @@
   </div>
 {% endif %}
 
-<form method="get" class="row g-2 mb-4">
+<div class="row g-2 mb-4 text-center summary-grid">
+  <div class="col"><div class="card metric-card"><div class="card-body"><strong>{{ team_summary.present }}</strong><div class="small text-muted">present</div></div></div></div>
+  <div class="col"><div class="card metric-card"><div class="card-body"><strong>{{ team_summary.absent }}</strong><div class="small text-muted">absent</div></div></div></div>
+  <div class="col"><div class="card metric-card"><div class="card-body"><strong>{{ team_summary.on_leave }}</strong><div class="small text-muted">on leave</div></div></div></div>
+  <div class="col"><div class="card metric-card"><div class="card-body"><strong>{{ team_summary.incomplete }}</strong><div class="small text-muted">incomplete</div></div></div></div>
+  <div class="col"><div class="card metric-card accent"><div class="card-body"><strong>{{ team_summary.pending }}</strong><div class="small text-muted">pending leave</div></div></div></div>
+</div>
+
+<form method="get" class="toolbar row g-2 mb-4">
   <div class="col-md-4">
     <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Search name, employee ID or email">
   </div>
@@ -32,13 +40,14 @@
   <div class="col-md-3">
     <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}" class="form-control">
   </div>
-  <div class="col-md-2">
-    <button class="btn btn-outline-primary w-100">Filter</button>
+  <div class="col-md-2 d-flex gap-2">
+    <button class="btn btn-outline-primary flex-grow-1">Filter</button>
+    <a class="btn btn-outline-secondary" href="{% url 'hr_dashboard' %}">Clear</a>
   </div>
 </form>
 
-<div class="table-responsive">
-  <table class="table table-sm table-hover align-middle bg-white shadow-sm">
+<div class="table-card table-responsive">
+  <table class="table table-hover align-middle">
     <thead class="table-light">
       <tr>
         <th>Employee</th><th>Name</th><th>Department</th><th>Role</th>
@@ -61,7 +70,7 @@
           <td><a class="btn btn-sm btn-outline-secondary" href="{% url 'hr_employee_detail' row.employee.id %}">Trends</a></td>
         </tr>
       {% empty %}
-        <tr><td colspan="10" class="text-center text-muted">No employees match your filters.</td></tr>
+        <tr><td colspan="10" class="empty-state"><span class="empty-icon">○</span>No employees match your filters.</td></tr>
       {% endfor %}
     </tbody>
   </table>

@@ -1,5 +1,6 @@
 import csv
 import datetime as dt
+from collections import Counter
 
 from django.conf import settings
 from django.contrib import messages
@@ -18,6 +19,7 @@ from leaves.models import LeaveBalance, LeaveRequest
 
 from . import services
 from .models import Attendance
+from .reports import monthly_employee_report
 
 
 def _parse_date(value, default):
@@ -170,6 +172,26 @@ def hr_dashboard(request):
         .distinct()
         .order_by("department")
     )
+    all_employees = list(User.objects.filter(is_active=True).order_by("employee_id"))
+    team_records = {
+        record.user_id: record
+        for record in Attendance.objects.filter(date=day, user__in=all_employees)
+    }
+    team_on_leave_ids = set(
+        LeaveRequest.objects.filter(
+            status=LeaveRequest.Status.APPROVED,
+            start_date__lte=day,
+            end_date__gte=day,
+            user__in=all_employees,
+        ).values_list("user_id", flat=True)
+    )
+    team_statuses = Counter(
+        services.day_status(
+            day, team_records.get(employee.id), employee.id in team_on_leave_ids, today=today
+        )
+        for employee in all_employees
+    )
+    pending_count = LeaveRequest.objects.filter(status=LeaveRequest.Status.PENDING).count()
     return render(
         request,
         "attendance/hr_dashboard.html",
@@ -181,9 +203,14 @@ def hr_dashboard(request):
             "department": department,
             "departments": departments,
             "page_obj": page_obj,
-            "pending_count": LeaveRequest.objects.filter(
-                status=LeaveRequest.Status.PENDING
-            ).count(),
+            "pending_count": pending_count,
+            "team_summary": {
+                "present": team_statuses[services.PRESENT],
+                "absent": team_statuses[services.ABSENT],
+                "on_leave": team_statuses[services.ON_LEAVE],
+                "incomplete": team_statuses[services.INCOMPLETE],
+                "pending": pending_count,
+            },
         },
     )
 
@@ -258,4 +285,29 @@ def hr_export_csv(request):
                     day["status"],
                 ]
             )
+    return response
+
+
+@hr_required
+def hr_employee_report(request, user_id):
+    """Download a one-month, one-employee attendance PDF for HR."""
+    User = get_user_model()
+    employee = get_object_or_404(User, pk=user_id)
+    today = services.local_date()
+    ref = today
+    month_str = request.GET.get("month", "").strip()
+    if month_str:
+        try:
+            ref = dt.date.fromisoformat(month_str + "-01")
+        except ValueError:
+            ref = today
+    start, end = services.month_bounds(ref)
+    summary = services.summarize(employee, start, end)
+    pdf = monthly_employee_report(
+        employee, leave_services.get_balance(employee), summary, start.strftime("%B %Y")
+    )
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'attachment; filename="attendance-{employee.employee_id}-{start:%Y-%m}.pdf"'
+    )
     return response

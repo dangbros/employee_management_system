@@ -11,6 +11,9 @@ from .forms import (
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("register/", views.register, name="register"),
+    path("profile/", views.profile, name="profile"),
+    path("profile/update/", views.update_profile, name="update_profile"),
+    path("profile/password/", views.change_password, name="change_password"),
     path(
         "login/",
         auth_views.LoginView.as_view(

@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Register{% endblock %}
 {% block content %}
-<div class="row justify-content-center">
+<div class="auth-page row justify-content-center">
   <div class="col-md-6 col-lg-5">
-    <div class="card shadow-sm">
+    <div class="card auth-card mx-auto">
       <div class="card-body">
-        <h1 class="h4 mb-3">Create your account</h1>
+        <div class="auth-logo"><span class="brand-mark">IE</span> Inner Eye</div>
+        <h1 class="auth-title">Create your account</h1>
+        <p class="auth-description">Set up your employee profile to get started.</p>
         <form method="post" novalidate>
           {% csrf_token %}
           {% for field in form %}
@@ -13,12 +15,12 @@
               <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
               {{ field }}
               {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
-              {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              {% for error in field.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
             </div>
           {% endfor %}
           <button class="btn btn-primary w-100">Create account</button>
         </form>
-        <p class="mt-3 mb-0 small text-muted">Already registered? <a href="{% url 'login' %}">Log in</a>.</p>
+        <p class="mt-4 mb-0 small text-muted text-center">Already registered? <a href="{% url 'login' %}">Sign in</a>.</p>
       </div>
     </div>
   </div>

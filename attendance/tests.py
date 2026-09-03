@@ -2,6 +2,7 @@ import datetime as dt
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from leaves import services as leave_services
@@ -188,3 +189,42 @@ class SummaryTests(TestCase):
     def test_history_never_reports_future_days(self):
         days = services.status_history(self.user, MON, SUN, today=WED)
         self.assertEqual(len(days), 3)
+
+
+class AttendanceViewIntegrationTests(TestCase):
+    def setUp(self):
+        self.employee = User.objects.create_user(
+            username="EMP400", employee_id="EMP400", email="emp400@example.com", password="x"
+        )
+        self.hr = User.objects.create_user(
+            username="HR400", employee_id="HR400", email="hr400@example.com", password="x",
+            role=User.Role.HR,
+        )
+
+    def test_employee_can_check_in_and_out(self):
+        self.client.force_login(self.employee)
+        self.assertRedirects(self.client.post(reverse("check_in")), reverse("employee_dashboard"))
+        self.assertRedirects(self.client.post(reverse("check_out")), reverse("employee_dashboard"))
+        record = Attendance.objects.get(user=self.employee, date=services.local_date())
+        self.assertIsNotNone(record.check_in)
+        self.assertIsNotNone(record.check_out)
+
+    def test_hr_summary_and_clear_filter_are_rendered(self):
+        self.client.force_login(self.hr)
+        response = self.client.get(reverse("hr_dashboard"), {"q": "does-not-match"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["team_summary"]["pending"], 0)
+        self.assertContains(response, 'href="/attendance/hr/"')
+
+    def test_pdf_report_is_hr_only_and_downloadable(self):
+        url = reverse("hr_employee_report", args=[self.employee.id])
+        anonymous = self.client.get(url)
+        self.assertRedirects(anonymous, f"{reverse('login')}?next={url}")
+        self.client.force_login(self.employee)
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.client.force_login(self.hr)
+        response = self.client.get(url, {"month": "2024-06"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn("attendance-EMP400-2024-06.pdf", response["Content-Disposition"])
+        self.assertTrue(response.content.startswith(b"%PDF"))

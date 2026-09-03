@@ -18,13 +18,17 @@ def my_leaves(request):
         form = LeaveRequestForm(request.POST)
         if form.is_valid():
             try:
-                services.create_request(
+                leave = services.create_request(
                     request.user,
                     form.cleaned_data["start_date"],
                     form.cleaned_data["end_date"],
                     form.cleaned_data["reason"],
                 )
-                messages.success(request, "Leave request submitted for approval.")
+                messages.success(
+                    request,
+                    f"Leave request submitted for {form.cleaned_data['start_date']:%d %b} "
+                    f"to {form.cleaned_data['end_date']:%d %b %Y} ({leave.days} working day(s)).",
+                )
                 return redirect("my_leaves")
             except services.LeaveError as exc:
                 messages.error(request, str(exc))
@@ -66,8 +70,12 @@ def hr_leaves(request):
 def approve_leave(request, pk):
     leave = get_object_or_404(LeaveRequest, pk=pk)
     try:
-        services.approve(leave, request.user)
-        messages.success(request, f"Approved leave for {leave.user}.")
+        leave = services.approve(leave, request.user)
+        messages.success(
+            request,
+            f"Approved {leave.days} working day(s) for {leave.user} "
+            f"({leave.start_date:%d %b} to {leave.end_date:%d %b %Y}).",
+        )
     except services.LeaveError as exc:
         messages.error(request, str(exc))
     return redirect("hr_leaves")
@@ -78,8 +86,11 @@ def approve_leave(request, pk):
 def reject_leave(request, pk):
     leave = get_object_or_404(LeaveRequest, pk=pk)
     try:
-        services.reject(leave, request.user)
-        messages.success(request, f"Rejected leave for {leave.user}.")
+        leave = services.reject(leave, request.user)
+        messages.success(
+            request,
+            f"Rejected leave for {leave.user} ({leave.start_date:%d %b} to {leave.end_date:%d %b %Y}).",
+        )
     except services.LeaveError as exc:
         messages.error(request, str(exc))
     return redirect("hr_leaves")
