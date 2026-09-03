@@ -60,7 +60,7 @@ employee-attendance-management/
 ```bash
 # Clone the repository
 git clone https://github.com/dangbros/employee_management_system.git
-cd employee-attendance-management
+cd employee_management_system
 
 # Create and activate a virtual environment
 python -m venv venv
