@@ -15,24 +15,22 @@ Attendance status (Present / Absent / On Leave / Half-day / Incomplete) is compu
 
 | Layer | Technology |
 |---|---|
-| Backend | Django 5.1 |
+| Backend | Django 5.2 |
 | Database | SQLite (dev) — schema is FK/constraint-clean and portable to PostgreSQL |
 | Frontend | Django templates + Bootstrap 5 |
 | Auth | Django's built-in auth system, extended with a role field |
+| Reports | ReportLab (PDF generation for attendance/leave reports) |
 
 **Why this stack:** Django's ORM, migrations, and auth system cover most of the assignment's requirements (user management, password hashing, session security) out of the box, which keeps the codebase focused on the actual business logic — attendance and leave calculation — rather than re-implementing infrastructure. Server-rendered templates were chosen over a separate frontend because the app's screens are form- and table-driven rather than highly interactive, so a SPA would add complexity without a corresponding UX benefit.
 
 ## Project Structure
 
 ```
-employee-attendance-management/
+employee_management_system/
 ├── accounts/       # User model, roles, registration & login
 ├── attendance/     # Check-in/check-out, working-hours calculation, status tracking
 ├── leaves/         # Leave balance, leave requests, HR approval workflow
 ├── config/         # Django project settings, root URLconf
-├── templates/      # HTML templates shared across apps
-├── static/css/     # Stylesheets
-├── docs/           # Supporting documentation
 ├── manage.py
 ├── requirements.txt
 └── README.md
@@ -47,6 +45,7 @@ employee-attendance-management/
 - **Attendance Status Tracking** — a dedicated status-computation layer derives Present / Absent / On Leave / Half-day / Incomplete per employee per day from attendance and leave records.
 - **HR Dashboard** — organization-wide view of today's attendance, leave requests awaiting action, and per-employee working-hour trends.
 - **Employee Dashboard** — personal check-in/check-out control, attendance history, and leave balance/request history.
+- **PDF Reports** — attendance and leave summaries can be exported as PDF via ReportLab.
 
 ## Getting Started
 
@@ -63,20 +62,20 @@ git clone https://github.com/dangbros/employee_management_system.git
 cd employee_management_system
 
 # Create and activate a virtual environment
-python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 
 # Apply migrations
-python manage.py migrate
+python manage.py migrate       # creates the SQLite schema
 
 # Create an HR/admin account
 python manage.py createsuperuser
 
-# (Optional) Load seed data — a few demo employees, an HR user, and sample attendance/leave history
-python manage.py loaddata seed_data.json
+# Load demo data — demo users and 3 weeks of attendance/leave history
+python manage.py seed_demo
 
 # Run the development server
 python manage.py runserver
@@ -84,13 +83,24 @@ python manage.py runserver
 
 The app will be available at `http://127.0.0.1:8000/`.
 
-<!-- If demo login credentials are seeded, list them here, e.g.:
-### Demo Credentials
+## Demoing the App
+
+`python manage.py seed_demo` populates the database with demo users and three weeks of attendance/leave history, so you can explore both roles without manually creating data.
+
+<!-- Fill in the actual credentials seed_demo creates, e.g.: -->
 | Role | Username | Password |
 |---|---|---|
-| HR | hr_demo | demo-pass-123 |
-| Employee | emp_demo | demo-pass-123 |
--->
+| HR | `hr_demo` | `demo-pass-123` |
+| Employee | `employee_demo` | `demo-pass-123` |
+
+Suggested walkthrough:
+
+1. **Log in as the HR user** and open the HR dashboard — you should see today's attendance status across the seeded employees, working-hour trends, and any pending leave requests to approve or reject.
+2. **Approve or reject a leave request** from the dashboard and confirm the requesting employee's leave balance updates accordingly.
+3. **Log out and log in as the employee user** — check in/out for the day, and confirm the action is reflected immediately on the employee dashboard's attendance history.
+4. **Review the working-hours summary** on the employee dashboard against the seeded history to see the weekly/monthly aggregation in action.
+5. **Generate a PDF report** (attendance or leave summary) to see the ReportLab export.
+6. Optionally, log into `/admin/` with the superuser account created during setup to inspect the underlying `Attendance`, `LeaveRequest`, and `LeaveBalance` records directly.
 
 ## Database Schema
 
@@ -154,5 +164,6 @@ Given more time, the next priorities would be:
 - Working-hours trend charts on the HR and employee dashboards
 - Docker-based one-command setup
 
+## License
 
 <!-- Add license if required by the assignment, e.g. MIT, or omit if not applicable -->
