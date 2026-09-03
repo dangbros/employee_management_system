@@ -59,7 +59,7 @@ employee-attendance-management/
 
 ```bash
 # Clone the repository
-git clone https://github.com/dangbros/employee-attendance-management.git
+git clone https://github.com/dangbros/employee_management_system.git
 cd employee-attendance-management
 
 # Create and activate a virtual environment
